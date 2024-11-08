@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>抽獎系統</title>
+</head>
+<body>
+  <iframe id="gasFrame" 
+          style="width: 100%; height: 100vh; border: none;">
+  </iframe>
+  <script>
+// 例如：您的外部網頁 URL 可能是：
+// https://您的網域/page?gas_id=YOUR_GAS_ID&page=control
+
+// 在外部網頁中解析 URL 參數
+const urlParams = new URLSearchParams(window.location.search);
+const gasId = urlParams.get('?');
+const page = urlParams.get('page') || 'index';
+
+// 構建 GAS 網頁應用程式的 URL
+const gasUrl = `https://script.google.com/macros/s/${gasId}/exec?page=${page}`;
+
+    // 在 iframe 中載入
+    document.getElementById('gasFrame').src = gasUrl;
+  </script>
+</body>
+</html>
