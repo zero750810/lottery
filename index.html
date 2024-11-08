@@ -2,9 +2,73 @@
 <html>
 <head>
   <title>抽獎系統</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    #gasFrame {
+      width: 100%;
+      height: 100vh;
+      border: none;
+    }
+  </style>
 </head>
 <body>
-  <iframe src="https://script.google.com/macros/s/AKfycbygWy1So4GvoBJzU6Rkrm52xNEVedhUrkiBbiqaoyn4aLjRo_Jb4Ipdfe53Ps21icqX6Q/exec" style="width: 100%; height: 100vh; border: none;"></iframe>
-</body>
+  <iframe id="gasFrame"></iframe>
+  
+  <script>
+    // 處理 URL 參數的函數
+    function getUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        gas_id: params.get('gas_id') || 'AKfycbygWy1So4GvoBJzU6Rkrm52xNEVedhUrkiBbiqaoyn4aLjRo_Jb4Ipdfe53Ps21icqX6Q',
+        page: params.get('page') || ''
+      };
+    }
 
+    // 更新 iframe 的 src
+    function updateIframeSrc() {
+      const { gas_id, page } = getUrlParams();
+      const baseUrl = `https://script.google.com/macros/s/${gas_id}/exec`;
+      const url = page ? `${baseUrl}?page=${page}` : baseUrl;
+      document.getElementById('gasFrame').src = url;
+    }
+
+    // 監聽 URL 變化
+    window.addEventListener('popstate', updateIframeSrc);
+
+    // 初始載入
+    updateIframeSrc();
+
+    // 監聽來自 iframe 的訊息
+    window.addEventListener('message', function(event) {
+      // 確保訊息來源是您的 GAS 應用程式
+      if (event.origin.includes('script.google.com')) {
+        const { gas_id } = getUrlParams();
+        
+        // 處理頁面跳轉
+        if (event.data.type === 'navigate') {
+          const newUrl = `${window.location.origin}${window.location.pathname}?gas_id=${gas_id}&page=${event.data.page}`;
+          window.history.pushState({}, '', newUrl);
+          updateIframeSrc();
+        }
+        
+        // 處理開新視窗
+        if (event.data.type === 'openWindow') {
+          const newWindow = window.open(
+            `${window.location.origin}${window.location.pathname}?gas_id=${gas_id}&page=${event.data.page}`,
+            '_blank'
+          );
+          if (!newWindow) {
+            alert('請允許開啟彈出視窗');
+          }
+        }
+      }
+    });
+  </script>
+</body>
 </html>
