@@ -33,20 +33,6 @@
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       max-width: 600px;
     }
-    h1 {
-      color: #333;
-      margin-bottom: 20px;
-    }
-    p {
-      color: #666;
-      margin-bottom: 15px;
-    }
-    code {
-      background-color: #f8f8f8;
-      padding: 5px 10px;
-      border-radius: 4px;
-      font-family: monospace;
-    }
   </style>
 </head>
 <body>
@@ -55,7 +41,7 @@
     <div class="error-message">
       <h1>抽獎系統</h1>
       <p>請在網址後方加入您的 GAS ID：</p>
-      <code>https://zero750810.github.io/lottery/?gas_id=YOUR_GAS_ID</code>
+      <code>?gas_id=YOUR_GAS_ID</code>
     </div>
   </div>
   
@@ -84,6 +70,7 @@
       errorContainer.style.display = 'none';
       gasFrame.style.display = 'block';
       
+      // 構建完整的 GAS URL
       const baseUrl = `https://script.google.com/macros/s/${gas_id}/exec`;
       const url = page ? `${baseUrl}?page=${page}` : baseUrl;
       gasFrame.src = url;
@@ -94,46 +81,6 @@
 
     // 初始載入
     updateIframeSrc();
-
-    // 監聽來自 iframe 的訊息
-    window.addEventListener('message', function(event) {
-      // 確保訊息來源是您的 GAS 應用程式
-      if (!event.origin.includes('script.google.com')) {
-        console.warn('收到未知來源的訊息:', event.origin);
-        return;
-      }
-
-      const { gas_id } = getUrlParams();
-      if (!gas_id) return;
-
-      try {
-        // 處理頁面跳轉
-        if (event.data.type === 'navigate') {
-          const newUrl = `${window.location.origin}${window.location.pathname}?gas_id=${gas_id}&page=${event.data.page}`;
-          window.history.pushState({}, '', newUrl);
-          updateIframeSrc();
-        }
-        
-        // 處理開新視窗
-        else if (event.data.type === 'openWindow') {
-          const newWindow = window.open(
-            `${window.location.origin}${window.location.pathname}?gas_id=${gas_id}&page=${event.data.page}`,
-            '_blank',
-            'width=800,height=600'
-          );
-          if (!newWindow) {
-            alert('請允許開啟彈出視窗');
-          }
-        }
-      } catch (error) {
-        console.error('處理訊息時發生錯誤:', error);
-      }
-    });
-
-    // 錯誤處理
-    window.addEventListener('error', function(event) {
-      console.error('頁面發生錯誤:', event.error);
-    });
   </script>
 </body>
 </html>
