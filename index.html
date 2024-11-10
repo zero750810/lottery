@@ -9,23 +9,62 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
     }
     #gasFrame {
       width: 100%;
       height: 100vh;
       border: none;
+      display: none;
+    }
+    .error-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      text-align: center;
+      padding: 20px;
+    }
+    .error-message {
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      max-width: 600px;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    p {
+      color: #666;
+      margin-bottom: 15px;
+    }
+    code {
+      background-color: #f8f8f8;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-family: monospace;
     }
   </style>
 </head>
 <body>
   <iframe id="gasFrame"></iframe>
+  <div id="errorContainer" class="error-container">
+    <div class="error-message">
+      <h1>抽獎系統</h1>
+      <p>請在網址後方加入您的 GAS ID：</p>
+      <code>https://zero750810.github.io/lottery/?gas_id=YOUR_GAS_ID</code>
+    </div>
+  </div>
   
   <script>
     // 處理 URL 參數的函數
     function getUrlParams() {
       const params = new URLSearchParams(window.location.search);
       return {
-        gas_id: params.get('gas_id') || 'AKfycbygWy1So4GvoBJzU6Rkrm52xNEVedhUrkiBbiqaoyn4aLjRo_Jb4Ipdfe53Ps21icqX6Q',
+        gas_id: params.get('gas_id'),
         page: params.get('page') || ''
       };
     }
@@ -33,9 +72,21 @@
     // 更新 iframe 的 src
     function updateIframeSrc() {
       const { gas_id, page } = getUrlParams();
+      const errorContainer = document.getElementById('errorContainer');
+      const gasFrame = document.getElementById('gasFrame');
+      
+      if (!gas_id) {
+        errorContainer.style.display = 'flex';
+        gasFrame.style.display = 'none';
+        return;
+      }
+
+      errorContainer.style.display = 'none';
+      gasFrame.style.display = 'block';
+      
       const baseUrl = `https://script.google.com/macros/s/${gas_id}/exec`;
       const url = page ? `${baseUrl}?page=${page}` : baseUrl;
-      document.getElementById('gasFrame').src = url;
+      gasFrame.src = url;
     }
 
     // 監聽 URL 變化
@@ -47,9 +98,15 @@
     // 監聽來自 iframe 的訊息
     window.addEventListener('message', function(event) {
       // 確保訊息來源是您的 GAS 應用程式
-      if (event.origin.includes('script.google.com')) {
-        const { gas_id } = getUrlParams();
-        
+      if (!event.origin.includes('script.google.com')) {
+        console.warn('收到未知來源的訊息:', event.origin);
+        return;
+      }
+
+      const { gas_id } = getUrlParams();
+      if (!gas_id) return;
+
+      try {
         // 處理頁面跳轉
         if (event.data.type === 'navigate') {
           const newUrl = `${window.location.origin}${window.location.pathname}?gas_id=${gas_id}&page=${event.data.page}`;
@@ -58,16 +115,24 @@
         }
         
         // 處理開新視窗
-        if (event.data.type === 'openWindow') {
+        else if (event.data.type === 'openWindow') {
           const newWindow = window.open(
             `${window.location.origin}${window.location.pathname}?gas_id=${gas_id}&page=${event.data.page}`,
-            '_blank'
+            '_blank',
+            'width=800,height=600'
           );
           if (!newWindow) {
             alert('請允許開啟彈出視窗');
           }
         }
+      } catch (error) {
+        console.error('處理訊息時發生錯誤:', error);
       }
+    });
+
+    // 錯誤處理
+    window.addEventListener('error', function(event) {
+      console.error('頁面發生錯誤:', event.error);
     });
   </script>
 </body>
