@@ -81,6 +81,38 @@
 
     // 初始載入
     updateIframeSrc();
+    
+   // 添加消息處理
+   window.addEventListener('message', function(event) {
+    // 驗證消息來源是否來自 GAS
+    if (event.origin.includes('script.google.com')) {
+      const { type, key, value } = event.data;
+      
+      if (type === 'saveData') {
+        // 儲存數據到 localStorage
+        localStorage.setItem(key, value);
+        console.log('Saved data:', key, value);
+        
+        // 如果展示窗口已開啟，則轉發消息
+        const displayWindow = window.localStorage.getItem('displayWindow');
+        if (displayWindow) {
+          window.open('', 'displayWindow').postMessage({
+            type: 'dataUpdated',
+            key: key,
+            value: value
+          }, window.location.origin);
+        }
+      } else if (type === 'openDisplay') {
+        // 開啟展示頁面
+        const displayWindow = window.open('/lottery/display.html', 'displayWindow', 'width=800,height=600');
+        if (displayWindow) {
+          window.localStorage.setItem('displayWindow', 'true');
+        } else {
+          alert('請允許開啟彈出視窗以顯示展示頁面');
+        }
+      }
+    }
+    });
   </script>
 </body>
 </html>
