@@ -80,74 +80,82 @@
       gasFrame.src = page ? `${baseUrl}?page=${page}` : baseUrl;
     }
 
-    // 開啟展示頁面
+    // 修改開啟展示頁面的函數
     function openDisplayWindow() {
       if (!currentGasId) return;
-      
-      const currentUrl = new URL(window.location.href);
-      currentUrl.searchParams.set('page', 'display');
-      
-      // 如果已經有展示窗口，就關閉它
-      if (displayWindow && !displayWindow.closed) {
-        displayWindow.close();
-      }
-      
-      // 開啟新的展示窗口
-      displayWindow = window.open(
-        currentUrl.toString(),
-        'displayWindow',
-        'width=800,height=600'
-      );
-      
-      if (!displayWindow) {
-        alert('請允許開啟彈出視窗以顯示展示頁面');
-      }
+  
+  // 使用當前網站的 URL 來開啟展示頁面
+  const displayUrl = new URL(window.location.href);
+  displayUrl.searchParams.set('page', 'display');
+  
+  // 如果已經有展示窗口，就關閉它
+  if (displayWindow && !displayWindow.closed) {
+    displayWindow.close();
+  }
+  
+  // 開啟新的展示窗口
+  displayWindow = window.open(
+    displayUrl.toString(),
+    'displayWindow',
+    'width=800,height=600'
+  );
+  
+  if (!displayWindow) {
+    alert('請允許開啟彈出視窗以顯示展示頁面');
+    return;
+  }
+
+  // 等待展示窗口載入完成
+  displayWindow.addEventListener('load', function() {
+    // 傳遞必要的資料給展示頁面
+    const frameData = document.getElementById('gasFrame').contentWindow;
+    if (frameData) {
+      displayWindow.postMessage({
+        type: 'init',
+        gasId: currentGasId
+      }, '*');
     }
+  });
+}
 
-    // 監聽消息
-    window.addEventListener('message', function(event) {
-      // 驗證來源
-      const allowedOrigins = [
-        'https://script.google.com',
-        'https://script.googleusercontent.com',
-        'https://n-*-script.googleusercontent.com'
-      ];
-      
-      const isAllowedOrigin = allowedOrigins.some(origin => {
-        if (origin.includes('*')) {
-          const pattern = new RegExp(origin.replace('*', '.*'));
-          return pattern.test(event.origin);
+  // 修改消息監聽器
+window.addEventListener('message', function(event) {
+  // 驗證來源
+  const allowedOrigins = [
+    'https://script.google.com',
+    'https://script.googleusercontent.com'
+  ];
+  
+  if (!allowedOrigins.some(origin => event.origin.startsWith(origin))) {
+    console.warn('未授權的來源:', event.origin);
+    return;
+  }
+
+  try {
+    const { type, data } = event.data;
+    
+    switch(type) {
+      case 'navigation':
+        // 處理導航請求
+        if (data.page === 'display') {
+          openDisplayWindow();
         }
-        return event.origin.startsWith(origin);
-      });
-
-      if (!isAllowedOrigin) {
-        console.warn('未授權的來源:', event.origin);
-        return;
-      }
-
-      try {
-        const { type, data } = event.data;
+        break;
         
-        switch(type) {
-          case 'openDisplay':
-            openDisplayWindow();
-            break;
-            
-          case 'updateData':
-            // 如果展示窗口開啟，轉發數據
-            if (displayWindow && !displayWindow.closed) {
-              displayWindow.postMessage({
-                type: 'dataUpdate',
-                data: data
-              }, window.location.origin);
-            }
-            break;
+      case 'dataUpdate':
+        // 如果展示窗口開啟，轉發數據
+        if (displayWindow && !displayWindow.closed) {
+          displayWindow.postMessage({
+            type: 'dataUpdate',
+            data: data
+          }, '*');
         }
-      } catch (error) {
-        console.error('處理消息時發生錯誤:', error);
-      }
-    });
+        break;
+    }
+  } catch (error) {
+    console.error('處理消息時發生錯誤:', error);
+  }
+});
 
     // 監聽 URL 變化
     window.addEventListener('popstate', updateIframeSrc);
