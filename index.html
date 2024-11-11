@@ -46,36 +46,21 @@
   </div>
   
   <script>
-    // 處理導航的函數
-    function handleNavigation(params) {
-      const { gas_id, page } = params;
-      const baseUrl = window.location.origin + window.location.pathname;
-      
-      if (page === 'display') {
-        // 開啟展示頁面
-        const displayUrl = `${baseUrl}?gas_id=${gas_id}&page=display`;
-        const displayWindow = window.open(displayUrl, 'displayWindow', 'width=800,height=600');
-        if (displayWindow) {
-          localStorage.setItem('displayWindow', 'true');
-        } else {
-          alert('請允許開啟彈出視窗以顯示展示頁面');
-        }
-      } else {
-        // 處理其他頁面導航
-        window.location.href = `${baseUrl}?gas_id=${gas_id}`;
-      }
-    }
+    // 全局變量
+    let currentGasId = '';
+    let displayWindow = null;
 
-    // 處理 URL 參數的函數
+    // 處理 URL 參數
     function getUrlParams() {
       const params = new URLSearchParams(window.location.search);
+      currentGasId = params.get('gas_id');
       return {
-        gas_id: params.get('gas_id'),
+        gas_id: currentGasId,
         page: params.get('page') || ''
       };
     }
 
-    // 更新 iframe 的 src
+    // 更新 iframe
     function updateIframeSrc() {
       const { gas_id, page } = getUrlParams();
       const errorContainer = document.getElementById('errorContainer');
@@ -90,56 +75,77 @@
       errorContainer.style.display = 'none';
       gasFrame.style.display = 'block';
       
-      // 構建完整的 GAS URL
+      // 使用新的 URL 結構
       const baseUrl = `https://script.google.com/macros/s/${gas_id}/exec`;
-      const url = page ? `${baseUrl}?page=${page}` : baseUrl;
-      gasFrame.src = url;
+      gasFrame.src = page ? `${baseUrl}?page=${page}` : baseUrl;
     }
 
-    // 監聽來自 iframe 的消息
+    // 開啟展示頁面
+    function openDisplayWindow() {
+      if (!currentGasId) return;
+      
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('page', 'display');
+      
+      // 如果已經有展示窗口，就關閉它
+      if (displayWindow && !displayWindow.closed) {
+        displayWindow.close();
+      }
+      
+      // 開啟新的展示窗口
+      displayWindow = window.open(
+        currentUrl.toString(),
+        'displayWindow',
+        'width=800,height=600'
+      );
+      
+      if (!displayWindow) {
+        alert('請允許開啟彈出視窗以顯示展示頁面');
+      }
+    }
+
+    // 監聽消息
     window.addEventListener('message', function(event) {
-      // 驗證消息來源
+      // 驗證來源
       const allowedOrigins = [
         'https://script.google.com',
-        'https://script.googleusercontent.com'
+        'https://script.googleusercontent.com',
+        'https://n-*-script.googleusercontent.com'
       ];
       
-      if (!allowedOrigins.some(origin => event.origin.startsWith(origin))) {
-        console.warn('收到未授權來源的消息:', event.origin);
+      const isAllowedOrigin = allowedOrigins.some(origin => {
+        if (origin.includes('*')) {
+          const pattern = new RegExp(origin.replace('*', '.*'));
+          return pattern.test(event.origin);
+        }
+        return event.origin.startsWith(origin);
+      });
+
+      if (!isAllowedOrigin) {
+        console.warn('未授權的來源:', event.origin);
         return;
       }
 
-      const { type, data } = event.data;
-      
-      switch(type) {
-        case 'navigation':
-          handleNavigation(data);
-          break;
-          
-        case 'saveData':
-          // 儲存數據到 localStorage
-          const { key, value } = data;
-          localStorage.setItem(key, value);
-          console.log('Saved data:', key, value);
-          
-          // 如果展示窗口已開啟，則轉發消息
-          if (localStorage.getItem('displayWindow') === 'true') {
-            const displayWindow = window.open('', 'displayWindow');
-            if (displayWindow) {
+      try {
+        const { type, data } = event.data;
+        
+        switch(type) {
+          case 'openDisplay':
+            openDisplayWindow();
+            break;
+            
+          case 'updateData':
+            // 如果展示窗口開啟，轉發數據
+            if (displayWindow && !displayWindow.closed) {
               displayWindow.postMessage({
-                type: 'dataUpdated',
-                data: { key, value }
+                type: 'dataUpdate',
+                data: data
               }, window.location.origin);
             }
-          }
-          break;
-          
-        case 'openDisplay':
-          handleNavigation({ 
-            gas_id: getUrlParams().gas_id, 
-            page: 'display' 
-          });
-          break;
+            break;
+        }
+      } catch (error) {
+        console.error('處理消息時發生錯誤:', error);
       }
     });
 
@@ -149,9 +155,11 @@
     // 初始載入
     updateIframeSrc();
 
-    // 清理函數
+    // 清理
     window.addEventListener('beforeunload', function() {
-      localStorage.removeItem('displayWindow');
+      if (displayWindow && !displayWindow.closed) {
+        displayWindow.close();
+      }
     });
   </script>
 </body>
